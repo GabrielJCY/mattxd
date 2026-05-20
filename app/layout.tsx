@@ -12,7 +12,7 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Matt-Bolivia | E-commerce & Sistema",
   description: "Gestión de ventas e inventario",
-  manifest: "/manifest.json", // ✅ ENLACE AL MANIFEST PARA LA PWA Y EL APK
+  manifest: "/manifest.json", // ✅ LÍNEA AÑADIDA PARA LA PWA Y EL APK
 };
 
 // 2. CONFIGURACIÓN DE DISPOSITIVO (Viewport) - ESTO ARREGLA EL ERROR
