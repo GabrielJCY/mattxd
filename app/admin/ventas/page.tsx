@@ -2,6 +2,9 @@ import { db } from "@/src/lib/db";
 import Link from "next/link";
 import BotonAnular from "./BotonAnular";
 import BotonReportePDF from "./BotonReportePDF";
+import TopProductos from "./TopProductos";
+import BtnDevoluciones from "@/components/BtnDevoluciones";
+import BtnEmpleados from "./BtnEmpleados"; // ✅ IMPORTAMOS EL BOTÓN DE EMPLEADOS
 import { Calendar, ArrowLeft, Terminal, BadgePercent, CreditCard, Banknote, Search, Clock, User, MapPin } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -135,26 +138,38 @@ export default async function HistorialVentasPage({
         </form>
       </div>
 
-      {/* TOTALES */}
-      <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-8 mb-12">
-        <div className="border-[3px] border-black p-6 md:p-8 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-          <p className="text-[9px] md:text-[11px] font-black uppercase text-gray-400 tracking-widest flex items-center gap-2">
-            <BadgePercent size={14} /> Total Bruto
-          </p>
-          <p className="text-4xl md:text-6xl font-black italic tracking-tighter mt-2">{totalGeneral.toFixed(2)} <span className="text-xs not-italic">BS.</span></p>
+      {/* TOTALES Y ACCESOS RÁPIDOS */}
+      <div className="max-w-7xl mx-auto mb-12 space-y-6 md:space-y-8">
+        
+        {/* Fila 1: Totales (3 columnas) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-8">
+          <div className="border-[3px] border-black p-6 md:p-8 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+            <p className="text-[9px] md:text-[11px] font-black uppercase text-gray-400 tracking-widest flex items-center gap-2">
+              <BadgePercent size={14} /> Total Bruto
+            </p>
+            <p className="text-4xl md:text-6xl font-black italic tracking-tighter mt-2">{totalGeneral.toFixed(2)} <span className="text-xs not-italic">BS.</span></p>
+          </div>
+          <div className="bg-black text-white p-6 md:p-8 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.2)]">
+            <p className="text-[9px] md:text-[11px] font-black uppercase text-gray-500 tracking-widest flex items-center gap-2">
+              <CreditCard size={14} /> Ingresos QR
+            </p>
+            <p className="text-4xl md:text-6xl font-black italic tracking-tighter mt-2 text-white">{totalQR.toFixed(2)} <span className="text-xs opacity-50">BS.</span></p>
+          </div>
+          <div className="border-[3px] border-black p-6 md:p-8 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+            <p className="text-[9px] md:text-[11px] font-black uppercase text-gray-400 tracking-widest flex items-center gap-2">
+              <Banknote size={14} /> Efectivo Cash
+            </p>
+            <p className="text-4xl md:text-6xl font-black italic tracking-tighter mt-2">{totalEfectivo.toFixed(2)} <span className="text-xs not-italic">BS.</span></p>
+          </div>
         </div>
-        <div className="bg-black text-white p-6 md:p-8 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.2)]">
-          <p className="text-[9px] md:text-[11px] font-black uppercase text-gray-500 tracking-widest flex items-center gap-2">
-            <CreditCard size={14} /> Ingresos QR
-          </p>
-          <p className="text-4xl md:text-6xl font-black italic tracking-tighter mt-2 text-white">{totalQR.toFixed(2)} <span className="text-xs opacity-50">BS.</span></p>
+
+        {/* Fila 2: Botones de Rankings (3 columnas) ✅ MODIFICADO */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-8">
+          <TopProductos fechaDesde={fechaDesde} fechaHasta={fechaHasta} />
+          <BtnDevoluciones fechaDesde={fechaDesde} fechaHasta={fechaHasta} />
+          <BtnEmpleados fechaDesde={fechaDesde} fechaHasta={fechaHasta} />
         </div>
-        <div className="border-[3px] border-black p-6 md:p-8 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] sm:col-span-2 md:col-span-1">
-          <p className="text-[9px] md:text-[11px] font-black uppercase text-gray-400 tracking-widest flex items-center gap-2">
-            <Banknote size={14} /> Efectivo Cash
-          </p>
-          <p className="text-4xl md:text-6xl font-black italic tracking-tighter mt-2">{totalEfectivo.toFixed(2)} <span className="text-xs not-italic">BS.</span></p>
-        </div>
+
       </div>
 
       {/* TABLA DESKTOP */}

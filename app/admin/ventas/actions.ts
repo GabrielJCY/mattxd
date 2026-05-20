@@ -245,3 +245,29 @@ export async function registrarClienteRapido(data: { nombre: string, apellido: s
     return { success: false, error: "No se pudo registrar el cliente" };
   }
 }
+
+/**
+ * 🏆 5. OBTENER PRODUCTOS MÁS VENDIDOS (EXCLUYE ANULADOS)
+ */
+export async function obtenerProductosMasVendidos() {
+  try {
+    const res = await db.execute(`
+      SELECT 
+        p.nombre AS producto, 
+        SUM(dv.cantidad) AS total_vendido
+      FROM detalle_venta dv
+      JOIN modelo m ON dv.id_modelo = m.id_modelo
+      JOIN producto p ON m.id_producto = p.id_producto
+      JOIN venta v ON dv.id_venta = v.id_venta
+      WHERE v.total > 0
+      GROUP BY p.id_producto
+      ORDER BY total_vendido DESC
+      LIMIT 10;
+    `);
+    
+    return JSON.parse(JSON.stringify(res.rows));
+  } catch (error: any) {
+    console.error("❌ ERROR AL OBTENER TOP PRODUCTOS:", error.message);
+    return [];
+  }
+}
