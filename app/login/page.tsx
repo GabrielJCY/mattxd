@@ -38,15 +38,21 @@ export default function LoginPage() {
 
     try {
       const result = await loginUniversal(formData);
+      // Si la función devuelve un error controlado (credenciales incorrectas)
       if (result?.error) {
         setServerError(result.error);
         setLoading(false);
       }
     } catch (err: any) {
-      if (err.message !== "NEXT_REDIRECT") {
-        setServerError("Credenciales no autorizadas");
-        setLoading(false);
+      // 🚀 SOLUCIÓN APLICADA: Si es NEXT_REDIRECT, lo lanzamos para que Next.js redirija
+      if (err.message === "NEXT_REDIRECT") {
+        throw err;
       }
+      
+      // Si es cualquier otro error (ej. se cayó el servidor o el internet)
+      console.error("Error en login:", err);
+      setServerError("Credenciales no autorizadas o error de conexión");
+      setLoading(false);
     }
   };
 

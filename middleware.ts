@@ -5,17 +5,28 @@ import { getToken } from "next-auth/jwt";
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1️⃣ Obtener token de sesión
+  // 1️⃣ Obtener token de sesión de GOOGLE (NextAuth)
   const token = await getToken({
     req: request,
     secret: process.env.NEXTAUTH_SECRET
   });
 
-  // 2️⃣ USUARIO NO LOGUEADO
-  if (!token) {
+  // 1.5️⃣ Obtener sesión MANUAL (Base de datos / Turso)
+  const manualCookie = request.cookies.get('matt_session')?.value;
+  let manualSession = null;
+  if (manualCookie) {
+    try {
+      manualSession = JSON.parse(manualCookie);
+    } catch (e) {
+      console.error("Error leyendo matt_session", e);
+    }
+  }
+
+  // 2️⃣ USUARIO NO LOGUEADO (Ni por Google ni Manual)
+  if (!token && !manualSession) {
     if (
       pathname.startsWith('/admin') ||
-      pathname.startsWith('/vendedora') || // Actualizado de /vendedor a /vendedora
+      pathname.startsWith('/vendedora') || 
       pathname.startsWith('/mi-cuenta') ||
       pathname.startsWith('/dashboard') ||
       pathname.startsWith('/registro')
@@ -27,25 +38,31 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 3️⃣ USUARIO LOGUEADO
-  const userRole = token.role as string;
-  const sucursalId = token.sucursalId as string | number | undefined;
+  // 3️⃣ UNIFICAR VARIABLES (Sea de Google o Manual)
+  let userRole = '';
+  let sucursalId: string | number | undefined = undefined;
+
+  if (token) {
+    // Viene de Google
+    userRole = token.role as string;
+    sucursalId = token.sucursalId as string | number | undefined;
+  } else if (manualSession) {
+    // Viene de la base de datos manual
+    // En actions.ts lo guardas como 'empleado', aquí lo normalizamos a 'vendedor'
+    userRole = manualSession.role === 'empleado' ? 'vendedor' : manualSession.role;
+    // (Opcional) Si en el futuro guardas el sucursalId en la cookie manual, lo leería aquí:
+    sucursalId = manualSession.id_sucursal; 
+  }
 
   // 🚨 USUARIO CON GOOGLE PERO SIN REGISTRO EN DB
   if (userRole === 'registro_incompleto') {
-
-    // ✅ MEJORA: Si el usuario viene del botón de éxito (?success=true)
-    // y va al Home ("/"), lo dejamos pasar para evitar el rebote.
     const isSuccess = request.nextUrl.searchParams.get('success') === 'true';
     if (pathname === '/' && isSuccess) {
       return NextResponse.next();
     }
-
-    // Cualquier otra ruta distinta a /registro lo manda a registro
     if (!pathname.startsWith('/registro')) {
       return NextResponse.redirect(new URL('/registro', request.url));
     }
-
     return NextResponse.next();
   }
 
@@ -64,12 +81,10 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith('/mi-cuenta') ||
       pathname.startsWith('/dashboard')
     ) {
-      // Redirige dinámicamente al ID de sucursal que simplificamos a [id]
       const target = sucursalId ? `/vendedora/${sucursalId}` : '/vendedora';
       return NextResponse.redirect(new URL(target, request.url));
     }
 
-    // SEGURIDAD: Evitar que una vendedora entre manualmente al ID de otra
     if (pathname.startsWith('/vendedora/')) {
       const requestedId = pathname.split('/')[2];
       if (sucursalId && requestedId !== sucursalId.toString()) {
@@ -82,13 +97,13 @@ export async function middleware(request: NextRequest) {
   if (userRole === 'cliente') {
     if (
       pathname.startsWith('/admin') ||
-      pathname.startsWith('/vendedora') // Protege la nueva ruta vendedora
+      pathname.startsWith('/vendedora')
     ) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
   }
 
-  // 🛡️ ADMIN tiene acceso completo
+  // 🛡️ ADMIN tiene acceso completo a todo
   if (userRole === 'admin') {
     return NextResponse.next();
   }
@@ -100,7 +115,7 @@ export const config = {
   matcher: [
     "/",
     "/admin/:path*",
-    "/vendedora/:path*", // Matcher actualizado para la nueva carpeta
+    "/vendedora/:path*",
     "/mi-cuenta/:path*",
     "/dashboard/:path*",
     "/registro/:path*"
