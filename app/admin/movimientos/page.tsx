@@ -22,8 +22,7 @@ export default async function MovimientosPage({ searchParams }: PageProps) {
   const { rows: sucursalesRaw } = await db.execute("SELECT id_sucursal, nombre_tienda FROM sucursal ORDER BY id_sucursal ASC");
   const listaSucursales = JSON.parse(JSON.stringify(sucursalesRaw));
 
-  // ✅ 1. QUERY BASE (CORREGIDA: Eliminamos los desfases de -4h en SQL)
-  // Ahora leemos la fecha tal cual está en la base de datos porque ya viene bien desde el Action.
+  // ✅ 1. QUERY BASE
   let query = `
     SELECT 
       mov.tipo, 
@@ -178,8 +177,18 @@ export default async function MovimientosPage({ searchParams }: PageProps) {
 
               {movimientosAgrupados[fechaGrupo].map((m: any, i: number) => {
                 const nombreSedeCorrecta = m.tipo === 'ENTRADA' ? m.sede_destino_nombre : m.sede_origen_nombre;
-                // ✅ Extraemos la hora directamente del string guardado
-                const hora = m.fecha_local ? m.fecha_local.split(' ')[1]?.substring(0, 5) : "--:--";
+                
+                // ✅ Ajuste exacto de hora para Bolivia (restando 4 horas al registro de BD)
+                let hora = "--:--";
+                if (m.fecha_local) {
+                  const fechaObj = new Date(m.fecha_local.replace(" ", "T"));
+                  if (!isNaN(fechaObj.getTime())) {
+                    fechaObj.setHours(fechaObj.getHours() - 4);
+                    hora = fechaObj.toTimeString().substring(0, 5);
+                  } else {
+                    hora = m.fecha_local.split(' ')[1]?.substring(0, 5) || "--:--";
+                  }
+                }
 
                 return (
                   <div 

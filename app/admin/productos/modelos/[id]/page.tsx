@@ -104,11 +104,11 @@ export default async function ModelosPage({ params }: { params: Promise<{ id: st
               </div>
               <div className="space-y-2">
                 <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Precio (BS)</label>
-                <input name="precio" type="number" step="0.01" placeholder="0.00" className="w-full border-b-2 border-black py-2 font-black text-xl outline-none focus:bg-slate-50 transition-colors" required />
+                <input name="precio" type="number" step="0.01" min="0" placeholder="0.00" className="w-full border-b-2 border-black py-2 font-black text-xl outline-none focus:bg-slate-50 transition-colors" required />
               </div>
               <div className="space-y-2">
                 <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Stock Inicial (Almacén)</label>
-                <input name="cantidad" type="number" placeholder="0" className="w-full border-b-2 border-black py-2 font-bold outline-none focus:bg-slate-50 transition-colors" required />
+                <input name="cantidad" type="number" min="0" step="1" placeholder="0" className="w-full border-b-2 border-black py-2 font-bold outline-none focus:bg-slate-50 transition-colors" required />
               </div>
               <button type="submit" className="md:col-span-2 bg-black text-white py-5 font-black uppercase text-[11px] tracking-[0.4em] hover:bg-slate-800 transition-all flex items-center justify-center gap-3">
                 Crear Variante <Plus className="w-4 h-4" strokeWidth={3} />
@@ -190,6 +190,7 @@ export default async function ModelosPage({ params }: { params: Promise<{ id: st
                               name="precio" 
                               type="number" 
                               step="0.01" 
+                              min="0"
                               defaultValue={Number(v.precio)} 
                               className="w-full py-2 px-3 font-bold text-sm bg-transparent outline-none focus:underline decoration-2"
                             />
@@ -208,8 +209,8 @@ export default async function ModelosPage({ params }: { params: Promise<{ id: st
                                 <input 
                                   form={`edit-form-${v.id_modelo}`} 
                                   name="cantidad" 
-                                  type="number"
-                                  defaultValue={0} 
+                                  type="text"
+                                  defaultValue="" 
                                   placeholder="+ / -"
                                   className={`w-full pl-3 pr-8 py-2 border-2 border-black font-black text-xs outline-none transition-all ${Number(v.cantidad) <= 0 ? 'bg-red-50' : 'bg-white'}`}
                                 />
@@ -221,7 +222,11 @@ export default async function ModelosPage({ params }: { params: Promise<{ id: st
                           {/* ACCIONES */}
                           <td className="p-2 text-right pr-4">
                             <div className="flex justify-end items-center gap-3 md:gap-4">
-                              <BotonActualizar formId={`edit-form-${v.id_modelo}`} />
+                            <BotonActualizar 
+                              formId={`edit-form-${v.id_modelo}`} 
+                              idModelo={v.id_modelo} 
+                              idProducto={id} 
+                            />
                               <div className="w-[1px] h-4 bg-slate-200" />
                               <form action={async () => { "use server"; await deleteModelo(Number(v.id_modelo), id); }}>
                                 <button className="text-slate-300 hover:text-red-600 transition-all">

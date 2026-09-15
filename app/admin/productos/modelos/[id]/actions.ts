@@ -13,7 +13,6 @@ cloudinary.config({
 
 // --- GESTIÓN DE MODELOS Y STOCK ---
 
-// Esta función te sirve para consultar el stock real sin sumas, solo lectura
 export async function getStockModelo(id_modelo: number) {
   try {
     const res = await db.execute({
@@ -28,11 +27,25 @@ export async function getStockModelo(id_modelo: number) {
 }
 
 export async function addModelo(formData: FormData) {
-  const id_producto = formData.get("id_producto") as string;
+  const id_producto = Number(formData.get("id_producto"));
   const talla = formData.get("talla") as string;
   const color = formData.get("color") as string;
-  const precio = formData.get("precio") as string;
-  const cantidadInicial = Number(formData.get("cantidad") || 0);
+  const precio = Number(formData.get("precio"));
+  
+  const cantidadRaw = formData.get("cantidad");
+  const cantidadStr = String(cantidadRaw || "").trim();
+
+  // Validación estricta: Si escribieron algo y no son solo números enteros positivos
+  if (cantidadStr !== "" && !/^\d+$/.test(cantidadStr)) {
+    return { success: false, message: "❌ El stock inicial no puede contener texto, solo números positivos." };
+  }
+
+  const cantidadInicial = cantidadStr !== "" ? Number(cantidadStr) : 0;
+
+  // Validación controlada (Retorna error limpio antes de tocar la BD)
+  if (isNaN(cantidadInicial) || cantidadInicial < 0) {
+    return { success: false, message: "❌ El stock inicial debe ser un número positivo y no contener texto." };
+  }
 
   try {
     const result = await db.execute({
@@ -40,7 +53,7 @@ export async function addModelo(formData: FormData) {
       args: [id_producto, talla, color, precio, `${talla} - ${color}`, cantidadInicial],
     });
 
-    const newId = result.rows[0].id_modelo;
+    const newId = Number(result.rows[0].id_modelo);
 
     await db.execute({
       sql: "INSERT INTO stock (id_modelo, cantidad, id_sucursal) VALUES (?, ?, ?)",
@@ -61,11 +74,16 @@ export async function addModelo(formData: FormData) {
     return { success: true, message: "Modelo creado correctamente" };
   } catch (error) {
     console.error("Error en addModelo:", error);
-    return { success: false, message: "Error al crear el modelo" };
+    return { success: false, message: "Error al crear el modelo en la base de datos" };
   }
 }
 
 export async function updateStock(id_modelo: number, nuevaCantidad: number, id_producto: string) {
+  // Validación controlada
+  if (isNaN(nuevaCantidad) || nuevaCantidad < 0) {
+    return { success: false, message: "❌ La cantidad debe ser un número positivo." };
+  }
+
   try {
     const res = await db.execute({
       sql: "SELECT cantidad FROM stock WHERE id_modelo = ? LIMIT 1",
@@ -75,7 +93,7 @@ export async function updateStock(id_modelo: number, nuevaCantidad: number, id_p
     const cantidadAnterior = Number(res.rows[0]?.cantidad || 0);
     const diferencia = nuevaCantidad - cantidadAnterior;
 
-    if (diferencia === 0) return { success: true };
+    if (diferencia === 0) return { success: true, message: "Sin cambios en el stock" };
 
     const tipo = diferencia > 0 ? 'ENTRADA' : 'SALIDA';
     const motivo = "Ajuste manual desde el panel de control";
@@ -99,10 +117,10 @@ export async function updateStock(id_modelo: number, nuevaCantidad: number, id_p
     revalidatePath(`/admin/stock`);
     revalidatePath("/", "layout");
     
-    return { success: true };
+    return { success: true, message: "Stock actualizado correctamente" };
   } catch (error) {
     console.error("Error en updateStock:", error);
-    return { success: false };
+    return { success: false, message: "Error al actualizar el stock" };
   }
 }
 
@@ -116,31 +134,41 @@ export async function deleteModelo(id_modelo: number, id_producto: string) {
     revalidatePath(`/admin/stock`);
     revalidatePath("/", "layout");
     
-    return { success: true };
+    return { success: true, message: "Modelo eliminado correctamente" };
   } catch (error) {
     console.error("Error al eliminar modelo:", error);
-    return { success: false };
+    return { success: false, message: "Error al eliminar el modelo" };
   }
 }
 
 export async function updateModelo(formData: FormData) {
-  const id_modelo = formData.get("id_modelo") as string;
+  const id_modelo = Number(formData.get("id_modelo"));
   const id_producto = formData.get("id_producto") as string;
   const talla = formData.get("talla") as string;
   const color = formData.get("color") as string;
-  const precio = formData.get("precio") as string;
+  const precio = Number(formData.get("precio"));
   
-  // Aquí capturamos la cantidad. Si el input está vacío o es 0, no sumará nada.
-  const cantidadASumar = formData.get("cantidad") ? Number(formData.get("cantidad")) : 0;
+  const cantidadRaw = formData.get("cantidad");
+  const cantidadStr = String(cantidadRaw || "").trim();
+
+  // VALIDACIÓN ESTRICTA: Si introdujo texto o letras, frena inmediatamente y retorna error con alerta
+  if (cantidadStr !== "" && !/^\d+$/.test(cantidadStr)) {
+    return { success: false, message: "❌ El stock no puede contener texto, solo números positivos." };
+  }
+
+  const cantidadASumar = cantidadStr !== "" ? Number(cantidadStr) : 0;
+
+  // Validación controlada de números negativos
+  if (isNaN(cantidadASumar) || cantidadASumar < 0) {
+    return { success: false, message: "❌ El stock a sumar debe ser un número positivo." };
+  }
 
   try {
-    // 1. Siempre actualizamos los datos básicos (Talla, Color, Precio)
     await db.execute({
       sql: "UPDATE modelo SET talla = ?, color = ?, precio = ?, nombre = ? WHERE id_modelo = ?",
       args: [talla, color, precio, `${talla} - ${color}`, id_modelo],
     });
 
-    // 2. Solo si la cantidad ingresada es mayor a 0, procedemos a SUMAR
     if (cantidadASumar > 0) {
       await db.execute({
         sql: "UPDATE stock SET cantidad = cantidad + ? WHERE id_modelo = ? AND id_sucursal = 4",
@@ -162,10 +190,10 @@ export async function updateModelo(formData: FormData) {
     revalidatePath(`/admin/stock`);
     revalidatePath("/", "layout");
     
-    return { success: true };
+    return { success: true, message: "Producto actualizado correctamente" };
   } catch (error) {
     console.error("Error al actualizar modelo:", error);
-    return { success: false };
+    return { success: false, message: "Error al actualizar el modelo" };
   }
 }
 
@@ -220,9 +248,9 @@ export async function deleteImagen(id_imagen: number, id_producto: string) {
     revalidatePath(`/admin/productos/modelos/${id_producto}`);
     revalidatePath("/", "layout");
     
-    return { success: true };
+    return { success: true, message: "Imagen eliminada correctamente" };
   } catch (error) {
     console.error("Error al eliminar imagen:", error);
-    return { success: false };
+    return { success: false, message: "Error al eliminar la imagen" };
   }
 }

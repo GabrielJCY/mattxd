@@ -24,7 +24,15 @@ export default async function ProductosPage({
 }) {
   const params = await searchParams;
   const idCategoria = params.categoria ? Number(params.categoria) : undefined;
-  const queryBusqueda = params.search || ""; 
+  
+  let queryBusqueda = params.search || ""; 
+
+  // Validación estricta: Se limpian números y caracteres raros del parámetro de búsqueda para permitir solo texto
+  const soloTextoRegex = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]*$/;
+  if (queryBusqueda && !soloTextoRegex.test(queryBusqueda)) {
+    queryBusqueda = queryBusqueda.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s]/g, "");
+  }
+
   const generoSeleccionado = params.genero || ""; 
 
   const session = await getServerSession(authOptions);

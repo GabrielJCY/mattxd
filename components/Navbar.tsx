@@ -150,7 +150,20 @@ export function Navbar() {
                     type="text" 
                     placeholder="INGRESAR TÉRMINO..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => {
+                      const valorLimpio = e.target.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s]/g, "");
+                      setSearchQuery(valorLimpio);
+                    }}
+                    onKeyDown={(e) => {
+                      const tecla = e.key;
+                      const esTeclaDeControl = [
+                        "Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab", "Home", "End", "Enter"
+                      ].includes(tecla);
+                      
+                      if (!esTeclaDeControl && !/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]$/.test(tecla)) {
+                        e.preventDefault();
+                      }
+                    }}
                     className="w-full bg-transparent border-b-4 border-[#2E2E2E] py-6 text-2xl md:text-6xl font-black uppercase tracking-tighter text-[#2E2E2E] placeholder:text-zinc-200 focus:outline-none focus:border-[#F57C00] transition-colors text-center"
                   />
                   <button type="submit" className="absolute right-0 bottom-6 text-[#F57C00] hover:scale-110 transition-transform">
