@@ -64,7 +64,7 @@ export function InteractiveActions({ productoNombre, idProducto, modelos, tablaM
     try {
       const res = await registrarIntencionPedido(idCliente, idProducto);
       if (res.success) {
-        const telefono = "59178802997"; 
+        const telefono = "59175106154"; 
         const mensaje = encodeURIComponent(
           `¡Hola Matt Bolivia! 🧥 Me interesa el modelo *${productoNombre}*.\n\n` +
           `*Detalles:* \n` +
