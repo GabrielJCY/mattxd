@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -52,8 +53,13 @@ export default function FormularioProducto({ categorias }: { categorias: any[] }
           <div className="space-y-4">
             <label className="text-[11px] font-black uppercase italic tracking-widest text-zinc-400">Nombre del Producto</label>
             <input 
-              name="nombre" 
-              required 
+              name="nombre"
+              type="text"
+              required
+              minLength={2}
+              maxLength={100}
+              pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ \-]+"
+              title="Solo se permiten letras, espacios y guiones (entre 2 y 100 caracteres)"
               placeholder="EJ. BOTÍN ROCKER BLACK"
               className="w-full border-2 border-black p-4 text-lg font-black uppercase outline-none focus:bg-black focus:text-white transition-all placeholder:opacity-20" 
             />
@@ -95,8 +101,9 @@ export default function FormularioProducto({ categorias }: { categorias: any[] }
           <div className="space-y-4">
             <label className="text-[11px] font-black uppercase italic tracking-widest text-zinc-400">Descripción Técnica</label>
             <textarea 
-              name="descripcion" 
-              rows={4} 
+              name="descripcion"
+              rows={4}
+              maxLength={1000}
               placeholder="MATERIAL, TIPO DE FORRO, ALTURA DE PLATAFORMA..."
               className="w-full border-2 border-black p-4 font-bold uppercase outline-none focus:bg-black focus:text-white transition-all placeholder:opacity-20 resize-none" 
             />

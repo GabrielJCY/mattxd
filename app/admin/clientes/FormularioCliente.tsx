@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -50,7 +51,11 @@ export default function FormularioCliente({ cliente }: FormularioClienteProps) {
             <input 
               name="nombre" 
               required 
-              type="text" 
+              type="text"
+              minLength={2}
+              maxLength={80}
+              pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]+"
+              title="Solo se permiten letras y espacios (entre 2 y 80 caracteres)"
               defaultValue={cliente?.nombre || ""}
               placeholder="EJ: JUAN"
               className="w-full bg-gray-50 border-none py-4 px-6 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-xs uppercase transition-all"
@@ -62,7 +67,12 @@ export default function FormularioCliente({ cliente }: FormularioClienteProps) {
             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 ml-2">Apellido</label>
             <input 
               name="apellido" 
-              type="text" 
+              type="text"
+              required
+              minLength={2}
+              maxLength={80}
+              pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]+"
+              title="Solo se permiten letras y espacios (entre 2 y 80 caracteres)"
               defaultValue={cliente?.apellido || ""}
               placeholder="EJ: PEREZ"
               className="w-full bg-gray-50 border-none py-4 px-6 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-xs uppercase transition-all"
@@ -76,7 +86,9 @@ export default function FormularioCliente({ cliente }: FormularioClienteProps) {
           <input 
             name="correo" 
             required 
-            type="email" 
+            type="email"
+            maxLength={254}
+            title="Introduce un correo electrónico válido"
             defaultValue={cliente?.correo || ""}
             placeholder="JUAN@MATT.BO"
             className="w-full bg-gray-50 border-none py-4 px-6 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-xs lowercase transition-all"
@@ -88,10 +100,16 @@ export default function FormularioCliente({ cliente }: FormularioClienteProps) {
           <div>
             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 ml-2 text-italic">Teléfono / WhatsApp</label>
             <input 
-              name="telefono" 
-              type="text" 
+              name="telefono"
+              type="tel"
+              inputMode="numeric"
+              required
+              minLength={7}
+              maxLength={15}
+              pattern="[0-9]{7,15}"
+              title="Solo se permiten números, entre 7 y 15 dígitos, sin espacios ni símbolos"
               defaultValue={cliente?.telefono || ""}
-              placeholder="+591 ..."
+              placeholder="70000000"
               className="w-full bg-gray-50 border-none py-4 px-6 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-xs transition-all"
             />
           </div>
@@ -104,7 +122,9 @@ export default function FormularioCliente({ cliente }: FormularioClienteProps) {
             <input 
               name="password" 
               required={!cliente} // Obligatorio solo al crear
-              type="password" 
+              type="password"
+              minLength={8}
+              title="La contraseña debe tener al menos 8 caracteres"
               placeholder={cliente ? "DEJAR EN BLANCO PARA MANTENER" : "******"}
               className="w-full bg-gray-50 border-none py-4 px-6 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-xs transition-all"
             />

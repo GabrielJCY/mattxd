@@ -1,3 +1,4 @@
+
 /**
  * --- CONFIGURACIÓN ANTI-CACHEO ---
  * force-dynamic: Evita que Next.js genere esta página como estática en el build.
@@ -21,8 +22,23 @@ import {
 } from "lucide-react";
 
 export default async function AdminClientesPage() {
-  // Traemos los clientes ordenados por nombre directamente de Turso/LibSQL
-  const { rows } = await db.execute("SELECT id_cliente, nombre, apellido, correo, telefono FROM cliente ORDER BY nombre ASC");
+  // Traemos solo los clientes activos, excluyendo los enviados a la papelera
+  const { rows } = await db.execute(`
+    SELECT
+      c.id_cliente,
+      c.nombre,
+      c.apellido,
+      c.correo,
+      c.telefono
+    FROM cliente c
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM papelera pa
+      WHERE pa.tabla_origen = 'cliente'
+        AND pa.id_registro = c.id_cliente
+    )
+    ORDER BY c.nombre ASC
+  `);
   
   // Serialización segura de los datos para evitar errores de hidratación
   const clientes = JSON.parse(JSON.stringify(rows));

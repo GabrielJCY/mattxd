@@ -1,3 +1,4 @@
+
 "use client";
 import { useState } from "react";
 import { saveSucursal } from "./actions";
@@ -56,11 +57,16 @@ export function TiendaForm({ tienda }: { tienda?: any }) {
         {/* Nombre de la Tienda */}
         <div className="space-y-1">
           <label className={labelStyles}>Denominación Oficial (Nombre)</label>
-          <input 
-            name="nombre_tienda" 
-            defaultValue={tienda?.nombre_tienda} 
-            required 
-            className={`${inputStyles} uppercase tracking-tighter italic text-lg`} 
+          <input
+            name="nombre_tienda"
+            type="text"
+            defaultValue={tienda?.nombre_tienda}
+            required
+            minLength={2}
+            maxLength={100}
+            pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9 -]+"
+            title="Solo letras, números, espacios y guiones (2 a 100 caracteres)"
+            className={`${inputStyles} uppercase tracking-tighter italic text-lg`}
             placeholder="EJ. MATT - CENTRAL AVENIDA"
           />
         </div>
@@ -68,10 +74,16 @@ export function TiendaForm({ tienda }: { tienda?: any }) {
         {/* Ciudad */}
         <div className="space-y-1">
           <label className={labelStyles}>Departamento / Ciudad</label>
-          <input 
-            name="ciudad" 
-            defaultValue={tienda?.ciudad} 
-            className={`${inputStyles} uppercase tracking-widest`} 
+          <input
+            name="ciudad"
+            type="text"
+            defaultValue={tienda?.ciudad}
+            required
+            minLength={2}
+            maxLength={80}
+            pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]+"
+            title="Solo se permiten letras y espacios (2 a 80 caracteres)"
+            className={`${inputStyles} uppercase tracking-widest`}
             placeholder="EJ. COCHABAMBA"
           />
         </div>
@@ -81,11 +93,16 @@ export function TiendaForm({ tienda }: { tienda?: any }) {
           <label className={labelStyles}>Localización Técnica (Dirección Exacta)</label>
           <div className="relative">
              <MapPin size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-600" />
-             <input 
-               name="direccion" 
-               defaultValue={tienda?.direccion} 
-               required 
-               className={`${inputStyles} pl-14 font-medium`} 
+             <input
+               name="direccion"
+               type="text"
+               defaultValue={tienda?.direccion}
+               required
+               minLength={5}
+               maxLength={200}
+               pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9 .,°º#/-]+"
+               title="Ingresa una dirección válida, entre 5 y 200 caracteres"
+               className={`${inputStyles} pl-14 font-medium`}
                placeholder="Calle 12 de Calacoto, Edificio Titanium, Local 4"
              />
           </div>
@@ -96,11 +113,17 @@ export function TiendaForm({ tienda }: { tienda?: any }) {
           <label className={`${labelStyles} flex items-center gap-2`}>
             <Phone size={12} className="text-black" /> Teléfono de Contacto
           </label>
-          <input 
-            name="telefono" 
-            defaultValue={tienda?.telefono} 
-            className={inputStyles} 
-            placeholder="+591 700 000 00"
+          <input
+            name="telefono"
+            type="tel"
+            inputMode="numeric"
+            defaultValue={tienda?.telefono}
+            minLength={7}
+            maxLength={15}
+            pattern="[0-9]{7,15}"
+            title="Solo números, entre 7 y 15 dígitos, sin espacios ni símbolos"
+            className={inputStyles}
+            placeholder="70000000"
           />
         </div>
 
@@ -109,10 +132,14 @@ export function TiendaForm({ tienda }: { tienda?: any }) {
           <label className={`${labelStyles} flex items-center gap-2`}>
             <Clock size={12} className="text-black" /> Ventana Horaria de Atención
           </label>
-          <input 
-            name="horario" 
-            defaultValue={tienda?.horario} 
-            className={inputStyles} 
+          <input
+            name="horario"
+            type="text"
+            defaultValue={tienda?.horario}
+            maxLength={150}
+            pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9 :.,/-]+"
+            title="Solo letras, números, espacios y símbolos de horario como : y -"
+            className={inputStyles}
             placeholder="LUNES A SÁBADO: 09:00 - 21:00"
           />
         </div>
@@ -120,10 +147,13 @@ export function TiendaForm({ tienda }: { tienda?: any }) {
         {/* Google Maps URL */}
         <div className="md:col-span-2 space-y-1">
           <label className={labelStyles}>Enlace Geográfico (Google Maps URL)</label>
-          <input 
-            name="google_maps_url" 
-            defaultValue={tienda?.google_maps_url} 
-            className={`${inputStyles} font-mono text-xs text-zinc-400`} 
+          <input
+            name="google_maps_url"
+            type="url"
+            defaultValue={tienda?.google_maps_url}
+            pattern="https?://.+"
+            title="Introduce una URL válida que comience con http:// o https://"
+            className={`${inputStyles} font-mono text-xs text-zinc-400`}
             placeholder="https://maps.google.com/..."
           />
         </div>
@@ -135,8 +165,8 @@ export function TiendaForm({ tienda }: { tienda?: any }) {
           </label>
           
           <div className="flex flex-col md:flex-row items-center justify-center gap-10">
-            <CldUploadWidget 
-              uploadPreset="ml_default" 
+            <CldUploadWidget
+              uploadPreset="ml_default"
               onSuccess={(result: any) => setImageUrl(result.info.secure_url)}
             >
               {({ open }) => (
@@ -153,10 +183,10 @@ export function TiendaForm({ tienda }: { tienda?: any }) {
 
             {imageUrl && (
               <div className="relative w-60 h-60 rounded-[3rem] overflow-hidden border-4 border-black group animate-in zoom-in duration-500 shadow-2xl">
-                <img 
-                  src={imageUrl} 
-                  alt="Preview" 
-                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" 
+                <img
+                  src={imageUrl}
+                  alt="Preview"
+                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700"
                 />
                 <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
                     <button
@@ -177,8 +207,8 @@ export function TiendaForm({ tienda }: { tienda?: any }) {
 
       {/* BOTONES DE ACCIÓN */}
       <div className="flex flex-col md:flex-row gap-6 pt-16 border-t-4 border-black mt-16">
-        <button 
-          type="submit" 
+        <button
+          type="submit"
           disabled={loading}
           className="flex-1 bg-black text-white font-black uppercase tracking-[0.3em] text-xs py-7 rounded-full hover:bg-zinc-800 transition-all flex items-center justify-center gap-4 disabled:opacity-50 shadow-2xl hover:scale-[1.01]"
         >
@@ -186,8 +216,8 @@ export function TiendaForm({ tienda }: { tienda?: any }) {
           {tienda ? "Confirmar Cambios en Sede" : "Ejecutar Registro de Nueva Sede"}
         </button>
         
-        <Link 
-          href="/admin/tiendas" 
+        <Link
+          href="/admin/tiendas"
           className="px-16 bg-white border-4 border-black text-black font-black uppercase tracking-[0.3em] text-xs py-7 rounded-full hover:bg-black hover:text-white transition-all flex items-center justify-center text-center"
         >
           Descartar y Volver

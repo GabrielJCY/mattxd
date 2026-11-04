@@ -1,3 +1,4 @@
+
 "use client";
 import { 
   User, 
@@ -71,17 +72,28 @@ export default function FormularioAdmin({ action, initialData }: any) {
           </label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             <input 
-              name="nombre" 
-              placeholder="NOMBRE" 
+              name="nombre"
+              type="text"
+              placeholder="NOMBRE"
               defaultValue={initialData?.nombre}
-              className="p-4 md:p-5 border-[3px] md:border-4 border-black font-black uppercase italic text-sm md:text-base outline-none focus:bg-slate-50 w-full placeholder:text-slate-200" 
-              required 
+              className="p-4 md:p-5 border-[3px] md:border-4 border-black font-black uppercase italic text-sm md:text-base outline-none focus:bg-slate-50 w-full placeholder:text-slate-200"
+              required
+              minLength={2}
+              maxLength={80}
+              pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]+"
+              title="El nombre solo permite letras y espacios (2 a 80 caracteres)"
             />
             <input 
-              name="apellido" 
-              placeholder="APELLIDO" 
+              name="apellido"
+              type="text"
+              placeholder="APELLIDO"
               defaultValue={initialData?.apellido}
-              className="p-4 md:p-5 border-[3px] md:border-4 border-black font-black uppercase italic text-sm md:text-base outline-none focus:bg-slate-50 w-full placeholder:text-slate-200" 
+              className="p-4 md:p-5 border-[3px] md:border-4 border-black font-black uppercase italic text-sm md:text-base outline-none focus:bg-slate-50 w-full placeholder:text-slate-200"
+              required
+              minLength={2}
+              maxLength={80}
+              pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]+"
+              title="El apellido solo permite letras y espacios (2 a 80 caracteres)"
             />
           </div>
         </div>
@@ -97,7 +109,9 @@ export default function FormularioAdmin({ action, initialData }: any) {
             placeholder="CORREO@MATTBOLIVIA.COM" 
             defaultValue={initialData?.correo}
             className="p-4 md:p-5 border-[3px] md:border-4 border-black font-black uppercase italic text-sm md:text-base outline-none focus:bg-slate-50 w-full placeholder:text-slate-200" 
-            required 
+            required
+            maxLength={254}
+            title="Introduce un correo electrónico válido"
           />
         </div>
 
@@ -112,7 +126,9 @@ export default function FormularioAdmin({ action, initialData }: any) {
               type="password"
               placeholder={initialData ? "NUEVA CLAVE (OPCIONAL)" : "CONTRASEÑA"} 
               className="p-4 md:p-5 border-[3px] md:border-4 border-black font-black uppercase italic text-sm md:text-base outline-none focus:bg-black focus:text-white transition-colors w-full placeholder:text-slate-200" 
-              required={!initialData} 
+              required={!initialData}
+              minLength={8}
+              title="La contraseña debe tener al menos 8 caracteres"
             />
             {initialData && (
               <div className="absolute -bottom-6 left-0 flex items-center gap-1 text-[7px] md:text-[8px] font-bold text-emerald-500 uppercase italic">

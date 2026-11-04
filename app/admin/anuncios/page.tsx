@@ -1,3 +1,4 @@
+
 import { db } from "@/src/lib/db";
 import Link from "next/link";
 import BotonEliminar from "./BotonEliminar";
@@ -15,6 +16,12 @@ export default async function AnunciosPage() {
     SELECT a.*, p.nombre as producto_nombre 
     FROM anuncio a 
     LEFT JOIN producto p ON a.id_producto = p.id_producto
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM papelera pa
+      WHERE pa.tabla_origen = 'anuncio'
+        AND pa.id_registro = a.id_anuncio
+    )
     ORDER BY a.id_anuncio DESC
   `);
   

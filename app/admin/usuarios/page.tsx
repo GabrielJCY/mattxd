@@ -1,3 +1,7 @@
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import { db } from "@/src/lib/db";
 import Link from "next/link";
 import BotonEliminarAdmin from "./BotonEliminarAdmin";
@@ -11,7 +15,23 @@ import {
 } from "lucide-react";
 
 export default async function UsuariosPage() {
-  const res = await db.execute("SELECT id_admin, nombre, apellido, correo FROM admin");
+  // Consultar administradores que NO están en la papelera
+  const res = await db.execute(`
+    SELECT
+      a.id_admin,
+      a.nombre,
+      a.apellido,
+      a.correo
+    FROM admin a
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM papelera pa
+      WHERE pa.tabla_origen = 'admin'
+        AND pa.id_registro = a.id_admin
+    )
+    ORDER BY a.id_admin DESC
+  `);
+
   const usuarios = JSON.parse(JSON.stringify(res.rows));
 
   return (

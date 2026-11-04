@@ -1,3 +1,4 @@
+
 /**
  * --- CONFIGURACIÓN DE RENDERIZADO DINÁMICO ---
  * force-dynamic: Asegura que Next.js no genere una versión estática de la lista de sedes.
@@ -22,10 +23,24 @@ interface Sucursal {
 }
 
 export default async function AdminTiendasPage() {
-  // CORRECCIÓN: Se cambió 'id' por 'id_sucursal' en el SELECT y el ORDER BY
-  const tiendas = (await executeQuery(
-    "SELECT id_sucursal, nombre_tienda, ciudad, direccion, telefono, horario FROM sucursal ORDER BY id_sucursal DESC"
-  )) as unknown as Sucursal[];
+  // Consultamos únicamente las sucursales que NO están en la papelera
+  const tiendas = (await executeQuery(`
+    SELECT
+      s.id_sucursal,
+      s.nombre_tienda,
+      s.ciudad,
+      s.direccion,
+      s.telefono,
+      s.horario
+    FROM sucursal s
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM papelera pa
+      WHERE pa.tabla_origen = 'sucursal'
+        AND pa.id_registro = s.id_sucursal
+    )
+    ORDER BY s.id_sucursal DESC
+  `)) as unknown as Sucursal[];
 
   return (
     <div className="p-4 md:p-10 max-w-7xl mx-auto min-h-screen bg-[#F8F9FA] text-black">

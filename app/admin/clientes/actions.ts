@@ -3,6 +3,32 @@
 import { db } from "@/src/lib/db";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
+import { registrarAuditoria } from "@/src/lib/auditoria";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { cookies } from "next/headers";
+
+// Identifica al administrador con los dos métodos de sesión del prototipo.
+async function obtenerIdAdministrador(): Promise<number | null> {
+  const session = await getServerSession(authOptions);
+  if (session?.user && (session.user as any).role === "admin") {
+    const id = Number((session.user as any).id);
+    if (Number.isSafeInteger(id) && id > 0) return id;
+  }
+
+  const cookieStore = await cookies();
+  const valor = cookieStore.get("matt_session")?.value;
+  if (!valor) return null;
+  try {
+    const manual = JSON.parse(valor);
+    const id = Number(manual.id);
+    return manual.role === "admin" && Number.isSafeInteger(id) && id > 0
+      ? id
+      : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * --- GUARDAR / ACTUALIZAR CLIENTE ---
@@ -16,39 +42,105 @@ export async function saveCliente(formData: FormData) {
   const telefono = formData.get("telefono") as string;
   const password = formData.get("password") as string;
 
+  // --- VALIDACIÓN DE NOMBRE ---
+  if (
+    typeof nombre !== "string" ||
+    nombre.trim().length < 2 ||
+    nombre.trim().length > 80 ||
+    !/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ ]+$/.test(nombre.trim())
+  ) {
+    return { success: false, message: "El nombre solo permite letras y espacios (2 a 80 caracteres)." };
+  }
+
+  // --- VALIDACIÓN DE APELLIDO ---
+  if (
+    typeof apellido !== "string" ||
+    apellido.trim().length < 2 ||
+    apellido.trim().length > 80 ||
+    !/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ ]+$/.test(apellido.trim())
+  ) {
+    return { success: false, message: "El apellido solo permite letras y espacios (2 a 80 caracteres)." };
+  }
+
+  // --- VALIDACIÓN DE CORREO ---
+  if (
+    typeof correo !== "string" ||
+    correo.length > 254 ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)
+  ) {
+    return { success: false, message: "Ingresa un correo electrónico válido." };
+  }
+
+  // --- VALIDACIÓN DE TELÉFONO ---
+  if (
+    typeof telefono !== "string" ||
+    !/^\d{7,15}$/.test(telefono)
+  ) {
+    return { success: false, message: "El teléfono debe contener entre 7 y 15 números, sin letras ni símbolos." };
+  }
+
+  // --- VALIDACIÓN DE ID AL EDITAR ---
+  if (id_cliente && !/^[1-9]\d*$/.test(id_cliente)) {
+    return { success: false, message: "El ID del cliente no es válido." };
+  }
+
+  // --- VALIDACIÓN DE CONTRASEÑA ---
+  if (!id_cliente || (password && password.length > 0)) {
+    if (
+      typeof password !== "string" ||
+      password.length < 8 ||
+      Buffer.byteLength(password, "utf8") > 72
+    ) {
+      return { success: false, message: "La contraseña debe tener al menos 8 caracteres y no superar 72 bytes." };
+    }
+  }
+
   try {
     if (id_cliente) {
       // --- LÓGICA DE ACTUALIZACIÓN ---
+      let resultado;
       if (password && password.length > 0) {
-        // Si el admin escribió una nueva contraseña, la hasheamos
         const salt = await bcrypt.genSalt(10);
         const hashed = await bcrypt.hash(password, salt);
-        await db.execute({
+        resultado = await db.execute({
           sql: "UPDATE cliente SET nombre=?, apellido=?, correo=?, telefono=?, password=? WHERE id_cliente=?",
           args: [nombre, apellido, correo, telefono, hashed, id_cliente],
         });
       } else {
-        // Si no hay contraseña nueva, actualizamos solo los datos básicos
-        await db.execute({
+        resultado = await db.execute({
           sql: "UPDATE cliente SET nombre=?, apellido=?, correo=?, telefono=? WHERE id_cliente=?",
           args: [nombre, apellido, correo, telefono, id_cliente],
+        });
+      }
+
+      if (resultado.rowsAffected > 0) {
+        await registrarAuditoria({
+          accion: "EDITAR",
+          modulo: "CLIENTES",
+          id_registro: Number(id_cliente),
+          descripcion: `Se actualizó el cliente: ${nombre} ${apellido}`,
         });
       }
     } else {
       // --- LÓGICA DE CREACIÓN ---
       const salt = await bcrypt.genSalt(10);
       const hashed = await bcrypt.hash(password, salt);
-      await db.execute({
-        sql: "INSERT INTO cliente (nombre, apellido, correo, telefono, password) VALUES (?, ?, ?, ?, ?)",
+      const resultado = await db.execute({
+        sql: "INSERT INTO cliente (nombre, apellido, correo, telefono, password) VALUES (?, ?, ?, ?, ?) RETURNING id_cliente",
         args: [nombre, apellido, correo, telefono, hashed],
+      });
+      const nuevoId = Number(resultado.rows[0]?.id_cliente ?? resultado.lastInsertRowid);
+      await registrarAuditoria({
+        accion: "CREAR",
+        modulo: "CLIENTES",
+        id_registro: Number.isSafeInteger(nuevoId) ? nuevoId : null,
+        descripcion: `Se registró el cliente: ${nombre} ${apellido}`,
       });
     }
 
-    // INVALIDACIÓN DE CACHÉ:
-    // Forzamos la actualización de la ruta específica y del layout global
+    // INVALIDACIÓN DE CACHÉ
     revalidatePath("/admin/clientes");
-    revalidatePath("/", "layout"); 
-
+    revalidatePath("/", "layout");
     return { success: true };
   } catch (error) {
     console.error("Error al guardar cliente:", error);
@@ -57,57 +149,66 @@ export async function saveCliente(formData: FormData) {
 }
 
 /**
- * --- ELIMINAR CLIENTE (CON PROTECCIÓN CONTABLE) ---
+ * --- ENVIAR CLIENTE A PAPELERA ---
+ * Conserva cliente, reseñas, likes, pedidos y ventas en sus tablas originales.
+ * Guarda solo datos no sensibles como copia de visualización en la papelera.
  */
 export async function deleteCliente(id_cliente: number) {
-  try {
-    // 1. VERIFICACIÓN DE VENTAS: Consultamos la tabla de ventas
-    const checkVentas = await db.execute({
-      sql: "SELECT COUNT(*) as total FROM venta WHERE id_cliente = ?",
-      args: [id_cliente]
-    });
-
-    const totalVentas = Number(checkVentas.rows[0].total);
-
-    // Si tiene ventas, bloqueamos el borrado para mantener integridad referencial
-    if (totalVentas > 0) {
-      return { 
-        success: false, 
-        message: `ACCIÓN DENEGADA: El cliente tiene ${totalVentas} venta(s) registrada(s). No se puede eliminar para no romper el historial contable de Matt Bolivia.` 
-      };
-    }
-
-    // 2. LIMPIEZA DE DATOS SECUNDARIOS (Cascada manual)
-    // Borramos datos que no afectan la contabilidad (likes y reseñas)
-    await db.execute({ sql: "DELETE FROM like_producto WHERE id_cliente = ?", args: [id_cliente] });
-    await db.execute({ sql: "DELETE FROM resena WHERE id_cliente = ?", args: [id_cliente] });
-    
-    // 3. BORRADO FINAL
-    await db.execute({ 
-      sql: "DELETE FROM cliente WHERE id_cliente = ?", 
-      args: [id_cliente] 
-    });
-    
-    // INVALIDACIÓN DE CACHÉ:
-    revalidatePath("/admin/clientes");
-    revalidatePath("/", "layout");
-
-    return { success: true };
-
-  } catch (error: any) {
-    console.error("Error al eliminar cliente:", error);
-    
-    // Doble validación por si falla la FK a nivel base de datos
-    if (error.code === 'SQLITE_CONSTRAINT' || error.message?.includes('FOREIGN KEY')) {
-      return { 
-        success: false, 
-        message: "No se puede eliminar: Existen registros vinculados que impiden el borrado por seguridad de datos." 
-      };
-    }
-
-    return { 
-      success: false, 
-      message: "Error inesperado: No se pudo procesar la eliminación." 
-    };
+  if (!Number.isSafeInteger(id_cliente) || id_cliente <= 0) {
+    return { success: false, message: "El ID del cliente no es válido." };
   }
+
+  const idAdmin = await obtenerIdAdministrador();
+  if (idAdmin === null) {
+    return { success: false, message: "No se pudo identificar al administrador." };
+  }
+
+  let tx;
+  try {
+    tx = await db.transaction("write");
+    const cliente = await tx.execute({
+      sql: "SELECT id_cliente, nombre, apellido, correo, telefono, direccion FROM cliente WHERE id_cliente = ?",
+      args: [id_cliente],
+    });
+    if (!cliente.rows.length) {
+      await tx.rollback();
+      return { success: false, message: "El cliente no existe." };
+    }
+
+    const existente = await tx.execute({
+      sql: "SELECT id_papelera FROM papelera WHERE tabla_origen = 'cliente' AND id_registro = ? LIMIT 1",
+      args: [id_cliente],
+    });
+    if (existente.rows.length) {
+      await tx.rollback();
+      return { success: false, message: "El cliente ya está en la papelera." };
+    }
+
+    await tx.execute({
+      sql: `INSERT INTO papelera
+              (tabla_origen, id_registro, datos_json, fecha_eliminacion, fecha_expiracion, id_admin)
+            VALUES ('cliente', ?, ?, CURRENT_TIMESTAMP, datetime('now', '+1 day'), ?)`,
+      args: [id_cliente, JSON.stringify(cliente.rows[0]), idAdmin],
+    });
+    await tx.commit();
+  } catch (error) {
+    if (tx) await tx.rollback().catch(() => {});
+    console.error("Error al enviar cliente a la papelera:", error);
+    return { success: false, message: "No se pudo enviar el cliente a la papelera." };
+  }
+
+  const auditoria = await registrarAuditoria({
+    accion: "ELIMINAR",
+    modulo: "CLIENTES",
+    id_registro: id_cliente,
+    descripcion: `Se envió el cliente con ID ${id_cliente} a la papelera.`,
+  });
+  if (!auditoria.success) {
+    console.error("Cliente archivado, pero no se pudo guardar su log:", auditoria.error);
+  }
+
+  revalidatePath("/admin/clientes");
+  revalidatePath("/admin/papelera");
+  revalidatePath("/", "layout");
+  return { success: true };
 }
