@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { guardarParametrosEoq, type EoqFila } from "./actions";
 import {
   AlertTriangle, CheckCircle2, Save, Search, Package, Store,
-  BarChart3, Truck, Wallet, Info, ArrowRight, RotateCcw,
+  BarChart3, Truck, Wallet, Info, RotateCcw,
   SlidersHorizontal, Calculator, ChevronRight, CircleHelp,
   ShieldCheck, Boxes, X,
 } from "lucide-react";
@@ -67,7 +67,7 @@ function calcular(f: EoqFila, p: Borrador): Resultado | null {
 
   if (
     ![d, sigma, K, h, L, dias].every(Number.isFinite) ||
-    d <= 0 || sigma < 0 || K <= 0 || h <= 0 || L <= 0 ||
+    d <= 0 || sigma < 0 || K <= 0 || h <= 0 || L <= 0 || L > 365 ||
     !Number.isInteger(dias) || dias < 1 || dias > 366 || !z
   ) return null;
 
@@ -156,6 +156,18 @@ function PanelConfiguracion({
   const [pendiente, iniciar] = useTransition();
   const [mensaje, setMensaje] = useState<{ ok: boolean; texto: string } | null>(null);
   const [mostrarDetalles, setMostrarDetalles] = useState(false);
+  const [mostrarAyudaVentas, setMostrarAyudaVentas] = useState(false);
+  const [historialVentas, setHistorialVentas] = useState("");
+
+  const calculoHistorial = useMemo(() => {
+    const entradas = historialVentas.split(/[,;\n]+/).map(v => v.trim()).filter(Boolean);
+    if (entradas.length < 2) return null;
+    const ventas = entradas.map(Number);
+    if (ventas.some(v => !Number.isSafeInteger(v) || v < 0)) return null;
+    const media = ventas.reduce((a, b) => a + b, 0) / ventas.length;
+    const desviacion = Math.sqrt(ventas.reduce((a, b) => a + (b - media) ** 2, 0) / ventas.length);
+    return { dias: ventas.length, media, desviacion };
+  }, [historialVentas]);
 
   const resultado = useMemo(() => calcular(fila, valores), [fila, valores]);
   const modificar = (campo: CampoNumerico, valor: string) => {
@@ -189,9 +201,9 @@ function PanelConfiguracion({
         <div className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
           <SlidersHorizontal size={15} /> Paso 2 · Configurar y calcular
         </div>
-        <h2 className="text-xl font-black uppercase tracking-tight">Calculadora de reposición</h2>
+        <h2 className="text-xl font-black tracking-tight">¿Cuándo y cuánto debo comprar?</h2>
         <p className="mt-2 text-xs leading-relaxed text-zinc-300">
-          Completa los datos de la prenda. Los resultados aparecerán automáticamente antes de guardar.
+          Responde estas tres preguntas sobre tus ventas y tu proveedor. Verás la recomendación al instante.
         </p>
       </div>
 
@@ -201,7 +213,7 @@ function PanelConfiguracion({
         <p className="text-xs text-zinc-600">Talla {fila.talla} · {fila.color}</p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-[11px] font-semibold ring-1 ring-zinc-200"><Store size={12} />{fila.sucursal}</span>
-          <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-semibold ring-1 ring-zinc-200">Stock: {fila.stock} uds.</span>
+          <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-semibold ring-1 ring-zinc-200">Tienes {fila.stock} unidades</span>
         </div>
       </div>
 
@@ -213,41 +225,57 @@ function PanelConfiguracion({
           <div className="flex items-center gap-2 border-b border-zinc-100 pb-3">
             <BarChart3 size={18} className="text-zinc-700" />
             <div>
-              <h3 className="text-sm font-black">1. ¿Cuánto se vende?</h3>
-              <p className="text-[11px] text-zinc-500">Demanda diaria de esta talla y color</p>
+              <h3 className="text-sm font-black">1. ¿Cuánto vendes de esta prenda?</h3>
+              <p className="text-[11px] text-zinc-500">Considera únicamente esta talla, color y sucursal.</p>
             </div>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-            <Campo nombre="demanda_diaria" titulo="Venta promedio al día" descripcion="Unidades que se venden, en promedio, cada día. Por ejemplo, 2,5 significa unas 2 o 3 unidades por día." ejemplo="Ej.: 2.5" valor={valores.demanda_diaria} cambiar={modificar}/>
-            <Campo nombre="desviacion_diaria" titulo="Variación de ventas al día" descripcion="Desviación estándar de las ventas diarias. Indica cuánto varían las ventas respecto al promedio; no es un porcentaje." ejemplo="Ej.: 1.2" minimo="0" valor={valores.desviacion_diaria} cambiar={modificar}/>
+            <Campo nombre="demanda_diaria" titulo="¿Cuántas unidades vendes al día, en promedio?" descripcion="Si vendiste 30 unidades en 10 días, escribe 3. Puedes ingresar decimales." ejemplo="Ej.: 3" valor={valores.demanda_diaria} cambiar={modificar}/>
+            <Campo nombre="desviacion_diaria" titulo="Variación habitual de ventas (unidades)" descripcion="Es la desviación estándar de las ventas diarias, no un porcentaje. Si no la conoces, usa la ayuda de abajo para calcularla." ejemplo="Ej.: 1.4" minimo="0" valor={valores.desviacion_diaria} cambiar={modificar}/>
           </div>
-          <Campo nombre="dias_operativos" titulo="Días considerados por año" descripcion="Días de operación usados para pasar la demanda diaria a demanda anual. Usa una base coherente con tu historial de ventas." ejemplo="Ej.: 365" minimo="1" valor={valores.dias_operativos} cambiar={modificar}/>
+          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+            <button type="button" onClick={() => setMostrarAyudaVentas(v => !v)} aria-expanded={mostrarAyudaVentas} className="flex w-full items-center justify-between gap-2 text-left text-xs font-bold text-zinc-900">
+              <span className="flex items-center gap-2"><Calculator size={16}/> No sé mi variación: calcular con ventas de varios días</span>
+              <ChevronRight size={16} className={mostrarAyudaVentas ? "rotate-90" : ""}/>
+            </button>
+            {mostrarAyudaVentas && <div className="mt-4 space-y-3">
+              <p className="text-xs leading-relaxed text-zinc-600">Escribe cuántas unidades vendiste cada día, separadas por comas. Incluye los días con cero ventas si abriste la tienda.</p>
+              <label className="block text-xs font-semibold text-zinc-800" htmlFor="historial-eoq">Ventas diarias</label>
+              <textarea id="historial-eoq" rows={3} value={historialVentas} onChange={e => setHistorialVentas(e.target.value)} placeholder="Ej.: 2, 4, 3, 5, 1" className="w-full rounded-xl border border-zinc-200 bg-white p-3 text-sm outline-none focus:border-black"/>
+              {calculoHistorial ? <div className="space-y-2 rounded-xl bg-white p-3 text-xs text-zinc-700">
+                <p>Con {calculoHistorial.dias} días: promedio <strong>{calculoHistorial.media.toFixed(2)}</strong> y variación <strong>{calculoHistorial.desviacion.toFixed(2)}</strong> unidades.</p>
+                <button type="button" onClick={() => { setValores(v => ({ ...v, demanda_diaria: calculoHistorial.media.toFixed(4), desviacion_diaria: calculoHistorial.desviacion.toFixed(4) })); setMensaje(null); }} className="rounded-lg bg-zinc-900 px-3 py-2 font-bold text-white">Usar estos valores</button>
+              </div> : <p className="text-[11px] text-zinc-500">Necesitas al menos dos días con cantidades enteras no negativas.</p>}
+              <p className="text-[11px] text-zinc-500">Esta ayuda usa la desviación estándar poblacional de los días ingresados. Para mejores estimaciones, utiliza un historial representativo.</p>
+            </div>}
+          </div>
+          <Campo nombre="dias_operativos" titulo="¿Cuántos días al año vende la tienda?" descripcion="Indica los días que abres y consideras para las ventas. Ejemplo: 300 si cierras algunos días." ejemplo="Ej.: 300" minimo="1" valor={valores.dias_operativos} cambiar={modificar}/>
         </div>
 
         <div className="space-y-4">
           <div className="flex items-center gap-2 border-b border-zinc-100 pb-3">
             <Wallet size={18} className="text-zinc-700" />
             <div>
-              <h3 className="text-sm font-black">2. ¿Cuánto cuesta abastecer?</h3>
-              <p className="text-[11px] text-zinc-500">Expresa ambos costos en bolivianos</p>
+              <h3 className="text-sm font-black">2. ¿Cuánto cuesta pedir y guardar mercadería?</h3>
+              <p className="text-[11px] text-zinc-500">Los dos importes se expresan en bolivianos (Bs).</p>
             </div>
           </div>
-          <Campo nombre="costo_pedido" titulo="Costo de realizar un pedido (K)" descripcion="Gastos fijos por hacer un pedido, como administración y transporte; no es el precio de compra de la prenda." ejemplo="Ej.: 50" valor={valores.costo_pedido} cambiar={modificar}/>
-          <Campo nombre="costo_mantenimiento_anual" titulo="Costo de guardar una unidad al año (h)" descripcion="Costo anual de almacenar UNA unidad: espacio, seguros, deterioro y capital inmovilizado, según corresponda." ejemplo="Ej.: 12" valor={valores.costo_mantenimiento_anual} cambiar={modificar}/>
+          <Campo nombre="costo_pedido" titulo="¿Cuánto gastas cada vez que haces un pedido? (Bs)" descripcion="Incluye transporte, trámites y otros gastos fijos. No incluyas el precio de compra de las prendas." ejemplo="Ej.: 50" valor={valores.costo_pedido} cambiar={modificar}/>
+          <Campo nombre="costo_mantenimiento_anual" titulo="¿Cuánto cuesta guardar UNA unidad durante un año? (Bs)" descripcion="Considera almacenamiento, deterioro, seguro y costo del dinero inmovilizado, según corresponda." ejemplo="Ej.: 12" valor={valores.costo_mantenimiento_anual} cambiar={modificar}/>
         </div>
 
         <div className="space-y-4">
           <div className="flex items-center gap-2 border-b border-zinc-100 pb-3">
             <Truck size={18} className="text-zinc-700" />
             <div>
-              <h3 className="text-sm font-black">3. ¿Cuándo llega la mercadería?</h3>
-              <p className="text-[11px] text-zinc-500">Tiempo de reposición y protección ante faltantes</p>
+              <h3 className="text-sm font-black">3. ¿Cuánto tarda tu proveedor?</h3>
+              <p className="text-[11px] text-zinc-500">Esto ayuda a calcular cuándo volver a comprar.</p>
             </div>
           </div>
-          <Campo nombre="plazo_entrega_dias" titulo="Tiempo que tarda el proveedor (L)" descripcion="Días desde que realizas el pedido hasta que lo recibes. El cálculo supone que este plazo es constante." ejemplo="Ej.: 7" valor={valores.plazo_entrega_dias} cambiar={modificar}/>
+          <Campo nombre="plazo_entrega_dias" titulo="¿En cuántos días llega el pedido?" descripcion="Cuenta desde que compras hasta que recibes las prendas. El modelo supone que este plazo es constante y no supera 365 días." ejemplo="Ej.: 7" valor={valores.plazo_entrega_dias} cambiar={modificar}/>
           <label className="block space-y-1.5">
             <span className="flex items-center gap-1.5 text-xs font-bold text-zinc-900">
-              Protección frente a faltantes <Ayuda texto="Probabilidad objetivo de no agotar el inventario durante el tiempo de entrega. Un porcentaje mayor suele requerir más stock de seguridad." />
+              ¿Qué nivel de protección deseas frente a faltantes? <Ayuda texto="Es la probabilidad objetivo de no agotar el inventario durante un plazo de entrega, bajo los supuestos del modelo. Mayor protección implica una reserva mayor." />
             </span>
             <select name="nivel_servicio" value={valores.nivel_servicio} onChange={e => setValores(v => ({ ...v, nivel_servicio: e.target.value }))}
               className="block w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-black">
@@ -256,21 +284,21 @@ function PanelConfiguracion({
               <option value="0.975">97,5 % · Mayor protección</option>
               <option value="0.99">99 % · Máxima protección disponible</option>
             </select>
-            <span className="block text-[11px] leading-relaxed text-zinc-500">Elige cuánto riesgo de quedarse sin existencias es aceptable para esta variante.</span>
+            <span className="block text-[11px] leading-relaxed text-zinc-500">El 95 % es un punto de partida para la prueba. Elige según cuánto te perjudicaría quedarte sin unidades.</span>
           </label>
         </div>
 
         <div className="space-y-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2"><Calculator size={18}/><h3 className="text-sm font-black">Vista previa del cálculo</h3></div>
+            <div className="flex items-center gap-2"><Calculator size={18}/><h3 className="text-sm font-black">Recomendación para esta prenda</h3></div>
             <span className="text-[10px] font-semibold text-zinc-500">Sin guardar</span>
           </div>
           {resultado ? (
             <>
               <div className="grid grid-cols-3 gap-2">
-                <div className="rounded-xl bg-white p-3 text-center ring-1 ring-zinc-200"><p className="text-[10px] font-medium text-zinc-500">Comprar (Q*)</p><p className="mt-1 text-2xl font-black">{resultado.q}</p><p className="text-[10px] text-zinc-500">unidades</p></div>
-                <div className="rounded-xl bg-white p-3 text-center ring-1 ring-zinc-200"><p className="text-[10px] font-medium text-zinc-500">Reordenar (R)</p><p className="mt-1 text-2xl font-black">{resultado.r}</p><p className="text-[10px] text-zinc-500">unidades</p></div>
-                <div className="rounded-xl bg-white p-3 text-center ring-1 ring-zinc-200"><p className="text-[10px] font-medium text-zinc-500">Reserva (SS)</p><p className="mt-1 text-2xl font-black">{resultado.ss}</p><p className="text-[10px] text-zinc-500">unidades</p></div>
+                <div className="rounded-xl bg-white p-3 text-center ring-1 ring-zinc-200"><p className="text-[10px] font-medium text-zinc-500">¿Cuánto pedir? (Q*)</p><p className="mt-1 text-2xl font-black">{resultado.q}</p><p className="text-[10px] text-zinc-500">unidades por pedido</p></div>
+                <div className="rounded-xl bg-white p-3 text-center ring-1 ring-zinc-200"><p className="text-[10px] font-medium text-zinc-500">¿Cuándo pedir? (R)</p><p className="mt-1 text-2xl font-black">{resultado.r}</p><p className="text-[10px] text-zinc-500">unidades de umbral</p></div>
+                <div className="rounded-xl bg-white p-3 text-center ring-1 ring-zinc-200"><p className="text-[10px] font-medium text-zinc-500">Reserva (SS)</p><p className="mt-1 text-2xl font-black">{resultado.ss}</p><p className="text-[10px] text-zinc-500">unidades de seguridad</p></div>
               </div>
               <div className={`flex gap-3 rounded-xl p-3 ${resultado.reponer ? "bg-amber-50 text-amber-900" : "bg-emerald-50 text-emerald-900"}`}>
                 {resultado.reponer ? <AlertTriangle size={20} className="shrink-0" /> : <CheckCircle2 size={20} className="shrink-0" />}
@@ -282,6 +310,7 @@ function PanelConfiguracion({
                   </p>
                 </div>
               </div>
+              <p className="text-[11px] leading-relaxed text-zinc-600">Estas cifras son una orientación. La alerta se basa en el stock físico; no descuenta reservas ni suma pedidos que ya vienen en camino.</p>
               <button type="button" onClick={() => setMostrarDetalles(!mostrarDetalles)} className="flex items-center gap-1 text-xs font-semibold text-zinc-600 underline underline-offset-4">
                 {mostrarDetalles ? "Ocultar detalles matemáticos" : "Ver detalles matemáticos"} <ChevronRight size={14} className={mostrarDetalles ? "rotate-90" : ""}/>
               </button>
